@@ -19,7 +19,9 @@ FINAL_FILE = "final_totals.json"
 # Game timing parameters
 HALF_GAME_MINUTES = 20
 HALFTIME_REAL_MIN = 20
-TOTAL_REAL_TIME = 125  # total game including halftime
+TV_TIMEOUTS_PER_HALF = 5
+TV_TIMEOUT_LENGTH = 2      # minutes real time
+TOTAL_REAL_TIME = 125      # total game including halftime
 
 st.set_page_config(page_title="DraftKings NCAAB O/U Drop Monitor", layout="wide")
 st.title("🏀 DraftKings NCAAB O/U Drop Monitor")
@@ -98,12 +100,14 @@ def estimate_game_time(commence_time_str):
         status = f"2H — {minutes_left:.1f} min left"
     else:
         status = "FINAL"
+
     return status
 
 def calculate_drop_stats(final_totals, margin=7):
     stats = {"10+": {"within":0, "total":0},
              "15+": {"within":0, "total":0},
              "20+": {"within":0, "total":0}}
+    
     for g_id, g in final_totals.items():
         pregame = g["pregame"]
         drop = g["drop_before_halftime"]
@@ -120,6 +124,7 @@ def calculate_drop_stats(final_totals, margin=7):
             stats["20+"]["total"] += 1
             if abs(final_total - pregame) <= margin:
                 stats["20+"]["within"] += 1
+    
     for k in stats:
         if stats[k]["total"] > 0:
             stats[k]["percent"] = round(100 * stats[k]["within"] / stats[k]["total"], 1)
@@ -128,23 +133,26 @@ def calculate_drop_stats(final_totals, margin=7):
     return stats
 
 def render_table(games, headers, live=True):
-    table_html = "<div style='overflow-x:auto; margin-bottom:20px;'>"
-    table_html += "<table style='width:100%; border-collapse: collapse; font-family:sans-serif; font-size:18px; border-radius:10px; overflow:hidden; box-shadow:0 2px 5px rgba(0,0,0,0.1);'>"
-    # Header
-    table_html += "<tr style='background-color:#4c6ef5; color:white; text-align:center; height:40px;'>"
+    table_html = "<div style='overflow-x:auto; margin-bottom:20px; width:100%;'>"
+    table_html += "<table style='width:100%; min-width:600px; border-collapse: collapse; font-family:sans-serif; font-size:14px; border-radius:10px; overflow:hidden; box-shadow:0 2px 5px rgba(0,0,0,0.1);'>"
+
+    # Table header
+    table_html += "<tr style='background-color:#4c6ef5; color:white; text-align:center; height:35px;'>"
     for h in headers:
-        table_html += f"<th style='padding:8px;'>{h}</th>"
+        table_html += f"<th style='padding:6px;'>{h}</th>"
     table_html += "</tr>"
-    # Rows
+
+    # Table rows
     for i, row in enumerate(games):
         bg = "#f0f2f6" if i % 2 == 0 else "#ffffff"
         if live:
             bg = row["color"]
-        table_html += f"<tr style='text-align:center; height:40px; background-color:{bg};'>"
+        table_html += f"<tr style='text-align:center; height:35px; background-color:{bg};'>"
         for h in headers:
             value = row.get(h.lower(), '')
-            table_html += f"<td style='padding:8px;'>{value}</td>"
+            table_html += f"<td style='padding:6px;'>{value}</td>"
         table_html += "</tr>"
+
     table_html += "</table></div>"
     return table_html
 
@@ -153,6 +161,7 @@ while True:
     if data:
         live_games = []
         upcoming_games = []
+
         now = datetime.now(timezone.utc)
 
         for game in data:
@@ -184,6 +193,11 @@ while True:
             drop = pregame_total - current_total if pregame_total else 0
             color = get_color(drop)
 
+            # Skip live games with N/A drop
+            if drop is None and now >= commence_dt:
+                continue
+
+            # Upcoming games
             if now < commence_dt:
                 est_time = commence_dt.astimezone(timezone(timedelta(hours=-5)))  # EST
                 start_str = est_time.strftime("%Y-%m-%d %I:%M %p")
@@ -193,6 +207,7 @@ while True:
                     "current_total": current_total,
                     "start_time": start_str
                 })
+            # Live games
             else:
                 time_status = estimate_game_time(commence_time)
                 live_games.append({
