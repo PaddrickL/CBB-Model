@@ -4,7 +4,7 @@ import time
 import json
 from datetime import datetime, timezone, timedelta
 
-API_KEY = "ce2f47450e423afdc72408ca6b12cb2a"
+API_KEY = st.secrets["ODDS_API_KEY"]
 SPORT = "basketball_ncaab"
 REGIONS = "us"
 MARKETS = "totals"
