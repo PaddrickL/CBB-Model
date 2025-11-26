@@ -208,21 +208,31 @@ while True:
 
         # Render tables
         def render_table(games, headers, live=True):
-            table_html = f"<table style='width:100%; border-collapse: collapse; font-family:sans-serif; border-radius:10px; overflow:hidden; box-shadow:0 2px 5px rgba(0,0,0,0.1);'>"
-            table_html += "<tr style='background-color:#4c6ef5; color:white; text-align:center; height:40px;'>"
-            for h in headers:
-                table_html += f"<th>{h}</th>"
-            table_html += "</tr>"
-            for i, row in enumerate(games):
-                bg = "#f0f2f6" if i % 2 == 0 else "#ffffff"
-                if live:
-                    bg = row["color"]
-                table_html += "<tr style='text-align:center; height:35px; background-color:{};'>".format(bg)
-                for h in headers:
-                    table_html += f"<td>{row.get(h.lower(), '')}</td>"
-                table_html += "</tr>"
-            table_html += "</table>"
-            return table_html
+    table_html = "<div style='overflow-x:auto; margin-bottom:20px;'>"
+    table_html += "<table style='width:100%; border-collapse: collapse; font-family:sans-serif; font-size:18px; border-radius:10px; overflow:hidden; box-shadow:0 2px 5px rgba(0,0,0,0.1);'>"
+    
+    # Table header
+    table_html += "<tr style='background-color:#4c6ef5; color:white; text-align:center; height:40px;'>"
+    for h in headers:
+        table_html += f"<th style='padding:8px;'>{h}</th>"
+    table_html += "</tr>"
+    
+    # Table rows
+    for i, row in enumerate(games):
+        # Alternate row background
+        bg = "#f0f2f6" if i % 2 == 0 else "#ffffff"
+        if live:
+            bg = row["color"]
+        
+        table_html += f"<tr style='text-align:center; height:40px; background-color:{bg};'>"
+        for h in headers:
+            value = row.get(h.lower(), '')
+            table_html += f"<td style='padding:8px;'>{value}</td>"
+        table_html += "</tr>"
+    
+    table_html += "</table></div>"
+    return table_html
+
 
         html_live = "<h3>Live Games</h3>" + render_table(live_games, ["Matchup", "Pregame", "Current", "Drop", "Time_Status"], live=True)
         html_upcoming = "<h3>Upcoming Games</h3>" + render_table(upcoming_games, ["Matchup", "Pregame_Total", "Current_Total", "Start_Time"], live=False)
