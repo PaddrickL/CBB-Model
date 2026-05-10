@@ -31,8 +31,8 @@ st.write("Highlights: 🟨 10+, 🟧 15+, 🟥 20+")
 
 placeholder = st.empty()
 
-# Initialize Supabase
-supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+# Initialize Supabase (commented out - secrets not configured)
+# supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 # Load pregame totals
 try:
@@ -75,19 +75,20 @@ def fetch_odds():
         return None
 
 
-def get_existing_game(game_id):
-    result = (
-        supabase.table("odds_snapshot")
-        .select("*")
-        .eq("game_id", game_id)
-        .limit(1)
-        .execute()
-    )
-    return result.data[0] if result.data else None
+# Supabase functions (commented out - not currently used)
+# def get_existing_game(game_id):
+#     result = (
+#         supabase.table("odds_snapshot")
+#         .select("*")
+#         .eq("game_id", game_id)
+#         .limit(1)
+#         .execute()
+#     )
+#     return result.data[0] if result.data else None
 
 
-def upsert_game(payload):
-    supabase.table("odds_snapshot").upsert(payload).execute()
+# def upsert_game(payload):
+#     supabase.table("odds_snapshot").upsert(payload).execute()
 
 
 # ------------------- CLEAN NUMBER (TRUE FIX) -------------------
