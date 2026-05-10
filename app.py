@@ -187,11 +187,11 @@ while True:
                 est_time = commence_dt.astimezone(timezone(timedelta(hours=-5)))
                 upcoming_games.append({
                     "Matchup": f"{away} @ {home}",
-                    "Pregame_Total": pregame_total,
-                    "Current_Total": current_total,
-                    "Pregame_Spread": pregame_spread,
-                    "Current_Spread": current_spread,
-                    "Start_Time": est_time.strftime("%Y-%m-%d %I:%M %p")
+                    "Pregame Total": round(pregame_total, 1) if pregame_total else None,
+                    "Current Total": round(current_total, 1) if current_total else None,
+                    "Pregame Spread": pregame_spread,
+                    "Current Spread": current_spread,
+                    "Start Time": est_time.strftime("%Y-%m-%d %I:%M %p")
                 })
             # Live games
             else:
@@ -200,12 +200,12 @@ while True:
                 
                 live_games.append({
                     "Matchup": f"{away} @ {home}",
-                    "Pregame_Total": pregame_total,
-                    "Current_Total": current_total,
+                    "Pregame Total": round(pregame_total, 1) if pregame_total else None,
+                    "Current Total": round(current_total, 1) if current_total else None,
                     "Drop": round(drop, 1) if drop else 0,
-                    "Pregame_Spread": pregame_spread,
-                    "Current_Spread": current_spread,
-                    "Time_Left": time_status,
+                    "Pregame Spread": pregame_spread,
+                    "Current Spread": current_spread,
+                    "Time Left": time_status,
                     "color": color
                 })
                 
