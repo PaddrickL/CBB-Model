@@ -42,17 +42,162 @@ st.title("🏀 DraftKings Sports Monitor")
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 # Sport selector
-selected_sport = st.selectbox("Select Sport", list(SPORTS_CONFIG.keys()) + ["Historical Data"])
+selected_sport = st.selectbox("Select Sport", list(SPORTS_CONFIG.keys()))
 
-if selected_sport == "Historical Data":
-    st.subheader("📊 Historical Data Analysis")
-    st.write("This section is under development. It will pull betting trends from the Supabase database.")
-    
-    # Placeholder for historical data features
-    st.info("Coming Soon: Historical trends, drop statistics, and performance metrics")
-    
-else:
+if selected_sport:
     sport_config = SPORTS_CONFIG[selected_sport]
+    
+    # Create tabs for each sport
+    tab1, tab2 = st.tabs(["📊 Live & Upcoming", "📈 Historical Analysis"])
+    
+    with tab1:
+        # Live & Upcoming games
+        placeholder = st.empty()
+
+        while True:
+            data = fetch_odds(sport_config["key"])
+            
+            if data:
+                live_games = []
+                upcoming_games = []
+                now = datetime.now(timezone.utc)
+                
+                for game in data:
+                    g_id = str(game["id"])
+                    
+                    dk_book = next(
+                        (b for b in game.get("bookmakers", []) if b["key"] == BOOKMAKER_KEY),
+                        None
+                    )
+                    if not dk_book:
+                        continue
+                    
+                    home = game["home_team"]
+                    away = game["away_team"]
+                    commence_time = game.get("commence_time")
+                    commence_dt = datetime.fromisoformat(commence_time.replace("Z", "+00:00"))
+                    
+                    # Get totals
+                    totals_market = next((m for m in dk_book.get("markets", []) if m["key"] == "totals"), None)
+                    spreads_market = next((m for m in dk_book.get("markets", []) if m["key"] == "spreads"), None)
+                    
+                    current_total = None
+                    current_spread = None
+                    
+                    if totals_market:
+                        outcomes = totals_market.get("outcomes", [])
+                        over_points = [o["point"] for o in outcomes if o["name"] == "Over"]
+                        if over_points:
+                            current_total = over_points[0]
+                    
+                    if spreads_market:
+                        outcomes = spreads_market.get("outcomes", [])
+                        if outcomes:
+                            current_spread = outcomes[0]["point"]
+                    
+                    # Get or create game record
+                    db_game = get_game_from_db(g_id, selected_sport)
+                    
+                    if not db_game and now < commence_dt:
+                        # Store pregame data for upcoming games
+                        db_game = {
+                            "game_id": g_id,
+                            "sport": selected_sport,
+                            "home_team": home,
+                            "away_team": away,
+                            "pregame_total": current_total,
+                            "pregame_spread": current_spread,
+                            "commence_time": commence_time,
+                            "created_at": now.isoformat()
+                        }
+                        save_game_to_db(db_game)
+                    
+                    pregame_total = db_game["pregame_total"] if db_game else None
+                    pregame_spread = db_game["pregame_spread"] if db_game else None
+                    
+                    # Calculate drop
+                    drop = 0
+                    if pregame_total and current_total:
+                        drop = pregame_total - current_total
+                    
+                    # Upcoming games
+                    if now < commence_dt:
+                        est_time = commence_dt.astimezone(timezone(timedelta(hours=-5)))
+                        upcoming_games.append({
+                            "Matchup": f"{away} @ {home}",
+                            "Pregame Total": format_number(pregame_total),
+                            "Current Total": format_number(current_total),
+                            "Pregame Spread": format_number(pregame_spread),
+                            "Current Spread": format_number(current_spread),
+                            "Start Time": est_time.strftime("%Y-%m-%d %I:%M %p")
+                        })
+                    # Live games
+                    else:
+                        time_status = estimate_game_time(commence_time, sport_config)
+                        color = get_color(drop)
+                        
+                        live_games.append({
+                            "Matchup": f"{away} @ {home}",
+                            "Pregame Total": format_number(pregame_total),
+                            "Current Total": format_number(current_total),
+                            "Drop": format_number(drop),
+                            "Pregame Spread": format_number(pregame_spread),
+                            "Current Spread": format_number(current_spread),
+                            "Time Left": time_status,
+                            "color": color
+                        })
+                        
+                        # Update final score when game ends
+                        if time_status == "FINAL" and db_game:
+                            db_game["final_total"] = current_total
+                            db_game["final_spread"] = current_spread
+                            save_game_to_db(db_game)
+                
+                # Sort live games by drop
+                live_games.sort(key=lambda x: x["Drop"], reverse=True)
+                
+                # Create tables
+                with placeholder.container():
+                    st.subheader(f"📊 {selected_sport} - Upcoming Games")
+                    if upcoming_games:
+                        df_upcoming = pd.DataFrame(upcoming_games)
+                        st.dataframe(df_upcoming, hide_index=True, use_container_width=True)
+                    else:
+                        st.write("No upcoming games")
+                    
+                    st.subheader(f"🔴 {selected_sport} - Live Games")
+                    if live_games:
+                        # Create styled dataframe
+                        df_live = pd.DataFrame(live_games)
+                        colors = df_live.pop("color")
+                        
+                        def color_cells(row):
+                            return [f"background-color: {colors[row.name]}"] * len(row)
+                        
+                        styled_df = df_live.style.apply(color_cells, axis=1)
+                        st.dataframe(styled_df, hide_index=True, use_container_width=True)
+                    else:
+                        st.write("No live games")
+            
+            else:
+                st.write("No data available...")
+            
+            time.sleep(REFRESH_SECONDS)
+    
+    with tab2:
+        # Historical Analysis
+        st.subheader(f"📈 {selected_sport} - Historical Analysis")
+        st.write("This section will analyze betting trends from Supabase database.")
+        st.info("Coming Soon: Drop statistics, performance metrics, and trend detection")
+        
+        # Placeholder for historical features
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Total Games Analyzed", "0")
+            st.metric("Avg Drop", "0")
+        with col2:
+            st.metric("Drop Success Rate", "0%")
+            st.metric("Trending Pattern", "None")
 
 def fetch_odds(sport_key):
     try:
@@ -130,136 +275,3 @@ def format_number(value):
         return str(int(value))
     else:
         return f"{round(value, 1)}"
-
-if selected_sport != "Historical Data":
-    placeholder = st.empty()
-
-    while True:
-        data = fetch_odds(sport_config["key"])
-        
-        if data:
-            live_games = []
-            upcoming_games = []
-            now = datetime.now(timezone.utc)
-            
-            for game in data:
-                g_id = str(game["id"])
-                
-                dk_book = next(
-                    (b for b in game.get("bookmakers", []) if b["key"] == BOOKMAKER_KEY),
-                    None
-                )
-                if not dk_book:
-                    continue
-                
-                home = game["home_team"]
-                away = game["away_team"]
-                commence_time = game.get("commence_time")
-                commence_dt = datetime.fromisoformat(commence_time.replace("Z", "+00:00"))
-                
-                # Get totals
-                totals_market = next((m for m in dk_book.get("markets", []) if m["key"] == "totals"), None)
-                spreads_market = next((m for m in dk_book.get("markets", []) if m["key"] == "spreads"), None)
-                
-                current_total = None
-                current_spread = None
-                
-                if totals_market:
-                    outcomes = totals_market.get("outcomes", [])
-                    over_points = [o["point"] for o in outcomes if o["name"] == "Over"]
-                    if over_points:
-                        current_total = over_points[0]
-                
-                if spreads_market:
-                    outcomes = spreads_market.get("outcomes", [])
-                    if outcomes:
-                        current_spread = outcomes[0]["point"]
-                
-                # Get or create game record
-                db_game = get_game_from_db(g_id, selected_sport)
-                
-                if not db_game and now < commence_dt:
-                    # Store pregame data for upcoming games
-                    db_game = {
-                        "game_id": g_id,
-                        "sport": selected_sport,
-                        "home_team": home,
-                        "away_team": away,
-                        "pregame_total": current_total,
-                        "pregame_spread": current_spread,
-                        "commence_time": commence_time,
-                        "created_at": now.isoformat()
-                    }
-                    save_game_to_db(db_game)
-                
-                pregame_total = db_game["pregame_total"] if db_game else None
-                pregame_spread = db_game["pregame_spread"] if db_game else None
-                
-                # Calculate drop
-                drop = 0
-                if pregame_total and current_total:
-                    drop = pregame_total - current_total
-                
-                # Upcoming games
-                if now < commence_dt:
-                    est_time = commence_dt.astimezone(timezone(timedelta(hours=-5)))
-                    upcoming_games.append({
-                        "Matchup": f"{away} @ {home}",
-                        "Pregame Total": format_number(pregame_total),
-                        "Current Total": format_number(current_total),
-                        "Pregame Spread": format_number(pregame_spread),
-                        "Current Spread": format_number(current_spread),
-                        "Start Time": est_time.strftime("%Y-%m-%d %I:%M %p")
-                    })
-                # Live games
-                else:
-                    time_status = estimate_game_time(commence_time, sport_config)
-                    color = get_color(drop)
-                    
-                    live_games.append({
-                        "Matchup": f"{away} @ {home}",
-                        "Pregame Total": format_number(pregame_total),
-                        "Current Total": format_number(current_total),
-                        "Drop": format_number(drop),
-                        "Pregame Spread": format_number(pregame_spread),
-                        "Current Spread": format_number(current_spread),
-                        "Time Left": time_status,
-                        "color": color
-                    })
-                    
-                    # Update final score when game ends
-                    if time_status == "FINAL" and db_game:
-                        db_game["final_total"] = current_total
-                        db_game["final_spread"] = current_spread
-                        save_game_to_db(db_game)
-            
-            # Sort live games by drop
-            live_games.sort(key=lambda x: x["Drop"], reverse=True)
-            
-            # Create tables
-            with placeholder.container():
-                st.subheader(f"📊 {selected_sport} - Upcoming Games")
-                if upcoming_games:
-                    df_upcoming = pd.DataFrame(upcoming_games)
-                    st.dataframe(df_upcoming, hide_index=True, use_container_width=True)
-                else:
-                    st.write("No upcoming games")
-                
-                st.subheader(f"🔴 {selected_sport} - Live Games")
-                if live_games:
-                    # Create styled dataframe
-                    df_live = pd.DataFrame(live_games)
-                    colors = df_live.pop("color")
-                    
-                    def color_cells(row):
-                        return [f"background-color: {colors[row.name]}"] * len(row)
-                    
-                    styled_df = df_live.style.apply(color_cells, axis=1)
-                    st.dataframe(styled_df, hide_index=True, use_container_width=True)
-                else:
-                    st.write("No live games")
-        
-        else:
-            st.write("No data available...")
-        
-        time.sleep(REFRESH_SECONDS)
