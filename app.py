@@ -199,8 +199,8 @@ if selected_sport != "Historical Data":
                         "Matchup": f"{away} @ {home}",
                         "Pregame Total": int(pregame_total) if pregame_total else None,
                         "Current Total": int(current_total) if current_total else None,
-                        "Pregame Spread": pregame_spread,
-                        "Current Spread": current_spread,
+                        "Pregame Spread": int(pregame_spread) if pregame_spread else None,
+                        "Current Spread": int(current_spread) if current_spread else None,
                         "Start Time": est_time.strftime("%Y-%m-%d %I:%M %p")
                     })
                 # Live games
@@ -213,8 +213,8 @@ if selected_sport != "Historical Data":
                         "Pregame Total": int(pregame_total) if pregame_total else None,
                         "Current Total": int(current_total) if current_total else None,
                         "Drop": int(drop) if drop else 0,
-                        "Pregame Spread": pregame_spread,
-                        "Current Spread": current_spread,
+                        "Pregame Spread": int(pregame_spread) if pregame_spread else None,
+                        "Current Spread": int(current_spread) if current_spread else None,
                         "Time Left": time_status,
                         "color": color
                     })
