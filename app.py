@@ -197,10 +197,10 @@ if selected_sport != "Historical Data":
                     est_time = commence_dt.astimezone(timezone(timedelta(hours=-5)))
                     upcoming_games.append({
                         "Matchup": f"{away} @ {home}",
-                        "Pregame Total": round(pregame_total, 1) if pregame_total else None,
-                        "Current Total": round(current_total, 1) if current_total else None,
-                        "Pregame Spread": round(pregame_spread, 1) if pregame_spread else None,
-                        "Current Spread": round(current_spread, 1) if current_spread else None,
+                        "Pregame Total": int(pregame_total) if pregame_total and pregame_total == int(pregame_total) else round(pregame_total, 1) if pregame_total else None,
+                        "Current Total": int(current_total) if current_total and current_total == int(current_total) else round(current_total, 1) if current_total else None,
+                        "Pregame Spread": int(pregame_spread) if pregame_spread and pregame_spread == int(pregame_spread) else round(pregame_spread, 1) if pregame_spread else None,
+                        "Current Spread": int(current_spread) if current_spread and current_spread == int(current_spread) else round(current_spread, 1) if current_spread else None,
                         "Start Time": est_time.strftime("%Y-%m-%d %I:%M %p")
                     })
                 # Live games
@@ -210,11 +210,11 @@ if selected_sport != "Historical Data":
                     
                     live_games.append({
                         "Matchup": f"{away} @ {home}",
-                        "Pregame Total": round(pregame_total, 1) if pregame_total else None,
-                        "Current Total": round(current_total, 1) if current_total else None,
-                        "Drop": round(drop, 1) if drop else 0,
-                        "Pregame Spread": round(pregame_spread, 1) if pregame_spread else None,
-                        "Current Spread": round(current_spread, 1) if current_spread else None,
+                        "Pregame Total": int(pregame_total) if pregame_total and pregame_total == int(pregame_total) else round(pregame_total, 1) if pregame_total else None,
+                        "Current Total": int(current_total) if current_total and current_total == int(current_total) else round(current_total, 1) if current_total else None,
+                        "Drop": int(drop) if drop and drop == int(drop) else round(drop, 1) if drop else 0,
+                        "Pregame Spread": int(pregame_spread) if pregame_spread and pregame_spread == int(pregame_spread) else round(pregame_spread, 1) if pregame_spread else None,
+                        "Current Spread": int(current_spread) if current_spread and current_spread == int(current_spread) else round(current_spread, 1) if current_spread else None,
                         "Time Left": time_status,
                         "color": color
                     })
