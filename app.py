@@ -127,9 +127,9 @@ def format_number(value):
     if value is None:
         return None
     if value == int(value):
-        return int(value)
+        return str(int(value))
     else:
-        return round(value, 1)
+        return f"{round(value, 1)}"
 
 if selected_sport != "Historical Data":
     placeholder = st.empty()
