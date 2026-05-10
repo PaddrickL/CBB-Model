@@ -41,6 +41,84 @@ st.title("🏀 DraftKings Sports Monitor")
 # Initialize Supabase
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
+# Define functions before using them
+def fetch_odds(sport_key):
+    try:
+        res = requests.get(
+            f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds",
+            params={
+                "apiKey": API_KEY,
+                "regions": REGIONS,
+                "markets": "totals,spreads",
+                "oddsFormat": ODDS_FORMAT,
+            },
+            timeout=10,
+        )
+        res.raise_for_status()
+        return res.json()
+    except Exception as e:
+        st.error(f"API error: {e}")
+        return None
+
+def get_game_from_db(game_id, sport):
+    result = (
+        supabase.table("odds_snapshot")
+        .select("*")
+        .eq("game_id", game_id)
+        .eq("sport", sport)
+        .limit(1)
+        .execute()
+    )
+    return result.data[0] if result.data else None
+
+def save_game_to_db(payload):
+    supabase.table("odds_snapshot").upsert(payload).execute()
+
+def estimate_game_time(commence_time_str, config):
+    now = datetime.now(timezone.utc)
+    commence_time = datetime.fromisoformat(commence_time_str.replace("Z", "+00:00"))
+    elapsed_real_total = (now - commence_time).total_seconds() / 60
+    
+    half_game_minutes = config["half_minutes"]
+    halftime_min = config["halftime_min"]
+    total_real_time = config["total_real_time"]
+    
+    half_real_total = (total_real_time - halftime_min) / 2
+    
+    if elapsed_real_total < half_real_total:
+        proportion = elapsed_real_total / half_real_total
+        minutes_elapsed = proportion * half_game_minutes
+        minutes_left = half_game_minutes - minutes_elapsed
+        return f"1H — {minutes_left:.1f} min left"
+    elif elapsed_real_total < half_real_total + halftime_min:
+        return "HALFTIME"
+    elif elapsed_real_total < 2 * half_real_total + halftime_min:
+        elapsed_second_half = elapsed_real_total - (half_real_total + halftime_min)
+        proportion = elapsed_second_half / half_real_total
+        minutes_elapsed = proportion * half_game_minutes
+        minutes_left = half_game_minutes - minutes_elapsed
+        return f"2H — {minutes_left:.1f} min left"
+    else:
+        return "FINAL"
+
+def get_color(drop):
+    if drop >= 20:
+        return "#ff4c4c"
+    elif drop >= 15:
+        return "#ffa500"
+    elif drop >= 10:
+        return "#ffff66"
+    else:
+        return "#ffffff"
+
+def format_number(value):
+    if value is None:
+        return None
+    if value == int(value):
+        return str(int(value))
+    else:
+        return f"{round(value, 1)}"
+
 # Sport selector
 selected_sport = st.selectbox("Select Sport", list(SPORTS_CONFIG.keys()))
 
@@ -198,80 +276,3 @@ if selected_sport:
         with col2:
             st.metric("Drop Success Rate", "0%")
             st.metric("Trending Pattern", "None")
-
-def fetch_odds(sport_key):
-    try:
-        res = requests.get(
-            f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds",
-            params={
-                "apiKey": API_KEY,
-                "regions": REGIONS,
-                "markets": "totals,spreads",
-                "oddsFormat": ODDS_FORMAT,
-            },
-            timeout=10,
-        )
-        res.raise_for_status()
-        return res.json()
-    except Exception as e:
-        st.error(f"API error: {e}")
-        return None
-
-def get_game_from_db(game_id, sport):
-    result = (
-        supabase.table("odds_snapshot")
-        .select("*")
-        .eq("game_id", game_id)
-        .eq("sport", sport)
-        .limit(1)
-        .execute()
-    )
-    return result.data[0] if result.data else None
-
-def save_game_to_db(payload):
-    supabase.table("odds_snapshot").upsert(payload).execute()
-
-def estimate_game_time(commence_time_str, config):
-    now = datetime.now(timezone.utc)
-    commence_time = datetime.fromisoformat(commence_time_str.replace("Z", "+00:00"))
-    elapsed_real_total = (now - commence_time).total_seconds() / 60
-    
-    half_game_minutes = config["half_minutes"]
-    halftime_min = config["halftime_min"]
-    total_real_time = config["total_real_time"]
-    
-    half_real_total = (total_real_time - halftime_min) / 2
-    
-    if elapsed_real_total < half_real_total:
-        proportion = elapsed_real_total / half_real_total
-        minutes_elapsed = proportion * half_game_minutes
-        minutes_left = half_game_minutes - minutes_elapsed
-        return f"1H — {minutes_left:.1f} min left"
-    elif elapsed_real_total < half_real_total + halftime_min:
-        return "HALFTIME"
-    elif elapsed_real_total < 2 * half_real_total + halftime_min:
-        elapsed_second_half = elapsed_real_total - (half_real_total + halftime_min)
-        proportion = elapsed_second_half / half_real_total
-        minutes_elapsed = proportion * half_game_minutes
-        minutes_left = half_game_minutes - minutes_elapsed
-        return f"2H — {minutes_left:.1f} min left"
-    else:
-        return "FINAL"
-
-def get_color(drop):
-    if drop >= 20:
-        return "#ff4c4c"
-    elif drop >= 15:
-        return "#ffa500"
-    elif drop >= 10:
-        return "#ffff66"
-    else:
-        return "#ffffff"
-
-def format_number(value):
-    if value is None:
-        return None
-    if value == int(value):
-        return str(int(value))
-    else:
-        return f"{round(value, 1)}"
